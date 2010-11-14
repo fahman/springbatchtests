@@ -34,7 +34,7 @@
 	<bean id="transactionManager" class="org.springframework.orm.jpa.JpaTransactionManager">
 		<property name="entityManagerFactory" ref="entityManagerFactory" />
 	</bean>
-	<tx:annotation-driven />
+	<tx:annotation-driven/>
 	
 	<bean id="entityManagerFactory"
 		class="org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean">
@@ -120,11 +120,28 @@
 	</bean>
 
 	<!-- slave -->
-<!--
 
-	<jms:inbound-gateway id="jmsingateway" request-destination="chunksInQueue" request-channel="sendChunksChan"
-		default-reply-destination="chunksOutQueue" />
-	  -->
+	<bean id="slaveDataSource" class="org.apache.commons.dbcp.BasicDataSource">
+		<property name="driverClassName" value="${batch.jdbc.driver}" />
+		<property name="url" value="${batch.jdbc.url}" />
+		<property name="username" value="${batch.jdbc.user}" />
+		<property name="password" value="${batch.jdbc.password}" />
+	</bean>
+
+	<bean id="slaveEntityManagerFactory"
+		class="org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean">
+		<property name="dataSource" ref="slaveDataSource" />
+		<property name="persistenceUnitName" value="springbatch.article.slave" />
+		<property name="jpaVendorAdapter">
+			<bean class="org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter">
+				<property name="generateDdl" value="false" />
+				<property name="showSql" value="true" />
+				<property name="databasePlatform" value="org.hibernate.dialect.Oracle10gDialect"/>
+				<!-- <property name="hibernate.dialect" value="org.hibernate.dialect.Oracle10gDialect" />  -->
+				<!-- <property name="jpaDialect" value="org.springframework.orm.jpa.vendor.HibernateJpaDialect" /> -->
+			</bean>
+		</property>
+	</bean>
 	
 	<bean id="chunkHandler"
 		class="org.springframework.batch.integration.chunk.ChunkProcessorChunkHandler">
@@ -132,7 +149,7 @@
 			<bean class="org.springframework.batch.core.step.item.SimpleChunkProcessor">
 				<property name="itemWriter">
 					<bean class="com.anderscore.springbatch.article.MyJpaItemWriter" >
-						<property name="entityManagerFactory" ref="entityManagerFactory" />
+						<property name="entityManagerFactory" ref="slaveEntityManagerFactory" />
 					</bean>
 				</property>
 				<property name="itemProcessor">
@@ -143,14 +160,14 @@
 		</property>
 	</bean>
 
-	<integration:channel id="chunkRequests"/>
-    <jms:message-driven-channel-adapter id="chunkReceiver" destination="chunksInQueue" channel="chunkRequests"/>
+	<integration:channel id="chunkRequestsToSlave"/>
+    <jms:message-driven-channel-adapter id="chunkReceiver" destination="chunksInQueue" channel="chunkRequestsToSlave"/>
 
-    <integration:channel id="chunkResponses"/>
-    <jms:outbound-channel-adapter id="chunkResponseSender" destination="chunksOutQueue" channel="chunkResponses"/>
+    <integration:channel id="chunkResponsesFromSlave"/>
+    <jms:outbound-channel-adapter id="chunkResponseSender" destination="chunksOutQueue" channel="chunkResponsesFromSlave"/>
 
 
 	<integration:service-activator
-		input-channel="chunkRequests" output-channel="chunkResponses" ref="chunkHandler" />
+		input-channel="chunkRequestsToSlave" output-channel="chunkResponsesFromSlave" ref="chunkHandler" />
 
 </beans>
