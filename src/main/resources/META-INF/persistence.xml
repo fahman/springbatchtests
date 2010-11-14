@@ -13,4 +13,16 @@
 			<property name="hibernate.show_sql" value="false" />
 		</properties>
 	</persistence-unit>
+
+
+	<persistence-unit name="springbatch.article.slave"
+		transaction-type="RESOURCE_LOCAL">
+		<provider>org.hibernate.ejb.HibernatePersistence</provider>
+		<mapping-file>META-INF/orm.xml</mapping-file>
+		<exclude-unlisted-classes>false</exclude-unlisted-classes>
+		<properties>
+			<property name="hibernate.hbm2ddl.auto" value="update" />
+			<property name="hibernate.show_sql" value="false" />
+		</properties>
+	</persistence-unit>
 </persistence>
